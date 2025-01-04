@@ -74,10 +74,8 @@ IMU = serialport("COM6",115200,"Timeout",15);
 coordinate=zeros(3,1);
 
 input('опусти в -90 градусов и нажми Энтер')
-flush(IMU, "input")
 basisStep1=getIMUdata(IMU);
 input('подними в 0 градусов и нажми Энтер')
-flush(IMU, "input")
 basisStep2=getIMUdata(IMU);
 
 transitionMatrix = basisStep2*inv(basisStep1);
@@ -116,12 +114,11 @@ surfBeam = [];
 modelDrawInterval = 0.1;
 modelDrawPrevTime = tic;
 
-flush(IMU, "input")
 while 1
    basis=getIMUdata(IMU);
     
-%    delete(prewBas);
-%    prewBas = drawBasis(axisBasis, coordinate, basis, 0.05);
+   delete(prewBas);
+   prewBas = drawBasis(axisBasis, coordinate, basis, 0.05);
 
     rotAxisProjection = basis'*rotAxis;
     if rad2deg(abs(vectorAngle(rotAxisCheck, rotAxisProjection))) > 5
@@ -131,7 +128,6 @@ while 1
     transitionMatrix = basis*inv(basisStep1);
     [~, eigValues] = eig(transitionMatrix);
     eigValues = diag(eigValues);
-%     fprintf("%3.0f°\n", rad2deg(angle(eigValues(angleIndex))) )
     beamAngle = rad2deg(angle(eigValues(angleIndex)));
     
     plot(axisAngle, datetime('now'), beamAngle, '.b')
@@ -140,15 +136,13 @@ while 1
         arrayIndex = round(beamAngle*2)+1;
         delete(surfBeam)
         surfBeam = trisurf(beamArray{arrayIndex}, 'FaceColor', [0.8 0.8 1], 'EdgeColor', 'none', 'Parent', axisSTL); 
-%         drawnow
         modelDrawPrevTime = tic;
     end
-    
-%     disp( rad2deg(abs(angle(rotAxisCheck, rotAxisProjection))) )
 
 end
 
 function bas=getIMUdata(port)
+    flush(port, "input")
     s=read(port,10,'int8');
     
     bas(1,1) = s(1)/100;
