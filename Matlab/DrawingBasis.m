@@ -69,7 +69,7 @@ basis=[1 0 0; 0 1 0; 0 0 1];
 drawBasis(axisBasis, [0 0 0],basis, 0.1);
 plot3(axisBasis, 0,0,0,'ob');
 
-IMU = serialport("COM6",115200,"Timeout",15);
+IMU = serialport("COM3",115200,"Timeout",15);
 
 coordinate=zeros(3,1);
 
