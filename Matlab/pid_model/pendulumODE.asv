@@ -1,0 +1,11 @@
+function dYdt = pendulumODE(t, Y, l, m, g, F0, k, alpha)
+    O = Y(1);         % Угол O
+    omega = Y(2);     % Угловая скорость dO/dt
+    
+    
+    K = (alpha-O)+;
+    dOdt = omega;
+    domegadt = ((F-k*omega) / (l * m)) - (g / l) * sin(O);
+
+    dYdt = [dOdt; domegadt];  % Возвращаем вектор производных
+end
