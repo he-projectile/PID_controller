@@ -1,4 +1,4 @@
-function dYdt = pendulumODE(t, Y, l, m, g, F0, kt, alpha, kp, ki, kd)
+function dYdt = pendulumODE(t, Y, l, m0, g, F0, kt, alpha, kp, ki, kd)
     O = Y(1);         % Угол O
     omega = Y(2);     % Угловая скорость dO/dt
     integral = Y(3);
@@ -8,6 +8,12 @@ function dYdt = pendulumODE(t, Y, l, m, g, F0, kt, alpha, kp, ki, kd)
     d_integral=e;
     
     K = kp*e+ki*integral-kd*omega;
+    
+    if t < 5
+        m = m0;
+    else
+        m = 0.2*m0;
+    end
     
     if K>1
         K = 1;
