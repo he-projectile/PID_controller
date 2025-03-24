@@ -1,5 +1,3 @@
-#define deg2rad 0.017453292519943295769
-
 #include "MATRIX.h"
 
 #include <math.h>
@@ -273,4 +271,60 @@ float matrixVecAzimuth(struct matrix* input1, struct matrix* input2) {
 	return angle;
 }
 
-#undef deg2rad
+uint8_t matrixInvOrth(struct matrix* input, struct matrix* output){
+	return matrixTranspose(input, output);
+}
+
+float matrixTrace(struct matrix* input){
+	if (input->rows != input->cols) return 0;	
+	if (input->rows == 2)
+		return input->arr[0] + input->arr[3];
+	if (input->rows == 3)
+		return input->arr[0] + input->arr[4] + input->arr[8];
+	return 0;
+}
+
+float matrixRotMatrixRotAngle(struct matrix* input){
+	float trace = 0;
+	
+	if (input->rows != input->cols) return 0;
+	if (input->rows != 2 && input->cols != 3) return 0;	
+	
+	if (input->rows == 2)
+		trace = matrixGE(input, 0, 0) + matrixGE(input, 1, 1);
+	if (input->rows == 3)
+		trace = matrixGE(input, 0, 0) + matrixGE(input, 1, 1) + matrixGE(input, 2, 2);
+	
+	trace = (trace - 1) / 2;
+	trace = (trace > 1) ? 1 : trace;
+	trace = (trace < -1) ? -1 : trace;
+	
+	return acos(trace);
+}
+
+
+uint8_t matrixRotMatrixRotAxis(struct matrix* input, struct matrix* output){
+	float trace = 0;
+	
+	if (input->rows != input->cols) return 1;
+	if (input->size != 9 || output->size != 3) return 1;	
+			
+	output->arr[0] = matrixGE(input, 2, 1) - matrixGE(input, 1, 2);
+	output->arr[1] = matrixGE(input, 0, 2) - matrixGE(input, 2, 0);
+	output->arr[2] = matrixGE(input, 1, 0) - matrixGE(input, 0, 1);
+	
+	matrixNormVec(output, output);
+	
+	return 0;
+}
+
+uint8_t matrixCopy(struct matrix* input, struct matrix* output){
+	output->cols = input->cols;
+	output->rows = input->rows;
+	output->size = input->size;
+	
+	for (uint8_t i = 0; i < 9; i++)
+		output->arr[i] = input->arr[i];
+	
+	return 0;
+}

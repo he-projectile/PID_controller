@@ -2,6 +2,9 @@
 #ifndef __MATRIX_H
 #define __MATRIX_H
 
+#define deg2rad 0.017453292519943295769
+#define rad2deg 57.2957795131
+
 #include "main.h"
 
 struct matrix {
@@ -30,6 +33,10 @@ float matrixVecLen(struct matrix* input);
 uint8_t matrixNormVec(struct matrix* input, struct matrix* output);
 float matrixVecAngle(struct matrix* input1, struct matrix* input2);
 float matrixVecAzimuth(struct matrix* input1, struct matrix* input2);
-void gyroCalib(void);
+uint8_t matrixInvOrth(struct matrix* input, struct matrix* output);
+float matrixTrace(struct matrix* input);
+float matrixRotMatrixRotAngle(struct matrix* input);
+uint8_t matrixRotMatrixRotAxis(struct matrix* input, struct matrix* output);
+uint8_t matrixCopy(struct matrix* input, struct matrix* output);
 
 #endif /* __MATRIX_H */

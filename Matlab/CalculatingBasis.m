@@ -73,32 +73,37 @@ IMU = serialport("COM3",115200,"Timeout",15);
 
 coordinate=zeros(3,1);
 
-input('опусти в -90 градусов и нажми Энтер')
+input('опусти в 0 градусов и нажми Энтер')
 basisStep1=getIMUdata(IMU);
-input('подними в 0 градусов и нажми Энтер')
+input('подними в 90 градусов и нажми Энтер')
 basisStep2=getIMUdata(IMU);
 
 transitionMatrix = basisStep2*inv(basisStep1);
 
-[eigVectors, eigValues] = eig(transitionMatrix);
-eigValues = diag(eigValues);
+% [eigVectors, eigValues] = eig(transitionMatrix);
+% eigValues = diag(eigValues);
+% 
+% [~, vectorIndex] = min(abs(eigValues - 1));
+% TrMatrixRotAxis = eigVectors(:, vectorIndex);
+% 
+% if vectorIndex == 1
+%     angleIndex = 2;
+% else
+%     angleIndex = 1;
+% end
+% rotAxis = TrMatrixRotAxis;
+% rotAxis=rotAxis/norm(rotAxis);
+% fprintf("повернул на %5.1f°\n", rad2deg(real(acos((trace(transitionMatrix)-1)/2))))
 
-[~, vectorIndex] = min(abs(eigValues - 1));
-TrMatrixRotAxis = eigVectors(:, vectorIndex);
-
-if vectorIndex == 1
-    angleIndex = 2;
-else
-    angleIndex = 1;
-end
-
-fprintf("повернул на %5.1f°\n", rad2deg(angle(eigValues(angleIndex))) )
-
-rotAxis = TrMatrixRotAxis;
+rotAxis = [  transitionMatrix(3,2) - transitionMatrix(2,3);
+                transitionMatrix(1,3) - transitionMatrix(3,1);
+                transitionMatrix(2,1) - transitionMatrix(1,2)
+             ];
 rotAxis=rotAxis/norm(rotAxis);
+fprintf("повернул на %5.1f°\n", rad2deg(real(acos((trace(transitionMatrix)-1)/2))))
 
 axis2verticalAngle = rad2deg(vectorAngle(rotAxis, [0 0 -1]));
-if abs( 90 - axis2verticalAngle ) < 5
+if abs( 90 - axis2verticalAngle ) < 15
     disp("стоим ровно")
 else
     disp("стоим криво")
@@ -121,14 +126,19 @@ while 1
    prewBas = drawBasis(axisBasis, coordinate, basis, 0.05);
 
     rotAxisProjection = basis'*rotAxis;
-    if rad2deg(abs(vectorAngle(rotAxisCheck, rotAxisProjection))) > 5
+    if rad2deg(abs(vectorAngle(rotAxisCheck, rotAxisProjection))) > 15
         disp("падаем")       
     end
     
     transitionMatrix = basis*inv(basisStep1);
-    [~, eigValues] = eig(transitionMatrix);
-    eigValues = diag(eigValues);
-    beamAngle = rad2deg(angle(eigValues(angleIndex)));
+    rotAxisNew = [  transitionMatrix(3,2) - transitionMatrix(2,3);
+                    transitionMatrix(1,3) - transitionMatrix(3,1);
+                    transitionMatrix(2,1) - transitionMatrix(1,2)
+                 ];
+    rotAxisNew = rotAxisNew/norm(rotAxisNew);
+    beamAngle = rad2deg(real(acos((trace(transitionMatrix)-1)/2)));
+    beamAngle = beamAngle*sign(dot(rotAxis, rotAxisNew));
+    disp(beamAngle)
     
     plot(axisAngle, datetime('now'), beamAngle, '.b')
     

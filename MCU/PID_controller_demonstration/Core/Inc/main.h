@@ -63,8 +63,6 @@ void Error_Handler(void);
 #define KEY_Pin GPIO_PIN_0
 #define KEY_GPIO_Port GPIOA
 #define KEY_EXTI_IRQn EXTI0_IRQn
-#define MPU_INT_Pin GPIO_PIN_5
-#define MPU_INT_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

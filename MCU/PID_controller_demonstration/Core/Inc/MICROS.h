@@ -13,5 +13,6 @@ void microsIT();
 uint64_t micros();
 void microsStart(struct microsPeriod *counter);
 void microsUpdate(struct microsPeriod *counter);
+uint8_t microsIsReady(struct microsPeriod *counter);
 
 #endif /* __MICROS_H */

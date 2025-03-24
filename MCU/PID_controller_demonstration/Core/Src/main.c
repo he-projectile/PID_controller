@@ -54,21 +54,35 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-float ACx, ACy, ACz, GYx, GYy, GYz, GYxPrev, GYyPrev, GYzPrev, MAGx, MAGy, MAGz, accTotal, gyroTotal, magTotal;
+float ACx, ACy, ACz, GYx, GYy, GYz, GYxPrev, GYyPrev, GYzPrev, MAGx, MAGy, MAGz,
+	accTotal, gyroTotal, magTotal, 
+	beamAngle, beamAngleTau = 0.001;
 uint8_t accGyroMagOverload;
 const uint16_t PCazimuth = 345;
 
-struct microsPeriod cyclePeriod = {0, 0}, 
-										accGyroPeriod = {0, 0}; 
+struct microsPeriod cyclePeriod = {0, 0}, accGyroPeriod = {0, 0}; 
+										
+float periodS;				
+
+const uint16_t timMin = 13200, timMax = 16800, timSpan = timMax - timMin;
+float kp = 10, ki = 0.001, kd = 20, ks = 700;
+float P = 0, I = 0, D = 0, S = 0;
+float reqAngle = 90, error = 0, errorPrev = 0;	
+float Ilim = 200;
+float Plim = 400;
+float Dsigma = 45;
+float PIDsumTau = 0.01, PIDsum = 0, PIDnormedKoef = 0, PIDsumTmp = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 void transmitBasis(float* floatArray, uint64_t time, uint8_t overload);
-
+void transmitBeamAngle(float angle, uint64_t time);
 void initState(struct matrix *basis, struct matrix *gravity, struct matrix* north);
 void restoreVertical(struct matrix* bas, struct matrix* grav, struct matrix* acc);
+void PID(uint64_t time);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -108,13 +122,21 @@ int main(void)
   MX_DMA_Init();
   MX_TIM4_Init();
   MX_USB_DEVICE_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-	microsInit(&htim4, 72000000);	// start micros timer
+	microsInit(&htim3, 72000000);	// start micros timer
 	
-	// startup the sensor, assign pointers of ACC, GYRO, MAG and overload flag variables
+	htim4.Instance->PSC = 5;
+	htim4.Instance->ARR = 48000;
+	htim4.Instance->CCR2 = 12000;		
+	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+//	HAL_Delay(1000);
+//	htim4.Instance->CCR2 = 1000;
+	
+	// startup the sensor, assign pointers of ACC, GYRO, MAG and overload flag variables	
 	MPU9255setup(&hi2c1, &ACx, &ACy, &ACz, &GYx, &GYy, &GYz, &accGyroMagOverload);
 	
-	struct matrix accVec,	gyroVec, magVec, rotMatrix, basis, gravityVec, northVec, velocityVec, coordinate;
+	struct matrix accVec,	gyroVec, magVec, rotMatrix, basis, gravityVec, northVec, velocityVec, coordinate, basisStep1, basisStep1Inv, plug, transitionMatrix;
 	
 	matrixZeroes(&accVec , 3, 1);
 	matrixZeroes(&gyroVec , 3, 1);
@@ -124,7 +146,11 @@ int main(void)
 	matrixZeroes(&gravityVec, 3,1);
 	matrixZeroes(&northVec, 3, 1);
 	matrixZeroes(&velocityVec, 3,1);
-	matrixZeroes(&coordinate, 3, 1);	
+	matrixZeroes(&coordinate, 3, 1);
+	matrixZeroes(&basisStep1, 3, 3);
+	matrixZeroes(&basisStep1Inv, 3, 3);
+	matrixZeroes(&plug, 3, 3);
+	matrixZeroes(&transitionMatrix, 3, 3);
 	
 	matrixSE(&northVec, 0, 0, 1);
 	matrixRotZ(&northVec, PCazimuth);
@@ -140,7 +166,16 @@ int main(void)
 	
 	gyroCalib();
 	
-	initState(&basis, &gravityVec, &northVec);	
+	initState(&basis, &gravityVec, &northVec);
+	
+	matrixCopy(&basis, &basisStep1);
+	matrixInvOrth(&basisStep1, &basisStep1Inv);
+	
+	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+	HAL_Delay(1000);
+	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+	HAL_Delay(2000);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -155,16 +190,14 @@ int main(void)
 		MPU9255_cycle(micros());
 			
 		if( MPU9255_ACC_GYRO_isReady() == 1){
-			struct matrix ds;
-			float periodS;
-			
+			float normedKoef, beamAngleTmp;
 			matrixSE(&accVec, 0, 0, ACx);
 			matrixSE(&accVec, 1, 0, ACy);
 			matrixSE(&accVec, 2, 0, ACz);
 			accTotal = matrixVecLen(&accVec);
 			
 			microsUpdate(&accGyroPeriod);
-			periodS = (float) accGyroPeriod.period/100000000;
+			periodS = (float) accGyroPeriod.period*1e-6;
 			GYxTmp = (GYx+GYxPrev)/2 * periodS;
 			GYyTmp = (GYy+GYyPrev)/2 * periodS;
 			GYzTmp = (GYz+GYzPrev)/2 * periodS;
@@ -178,9 +211,20 @@ int main(void)
 			matrixMultiply(&basis, &accVec, &accVec);
 			restoreVertical(&basis, &gravityVec, &accVec);
 			matrixSum(&accVec, &gravityVec, &accVec);
+			
+			matrixMultiply(&basis, &basisStep1Inv, &transitionMatrix);
+			beamAngleTmp = rad2deg*matrixRotMatrixRotAngle(&transitionMatrix);
+			
+			normedKoef = periodS/(beamAngleTau+periodS);
+      beamAngle = normedKoef*beamAngleTmp+(1-normedKoef)*beamAngle;  
 		}				
 		
-		transmitBasis(basis.arr, micros(), accGyroMagOverload);
+		// transmitBasis(basis.arr, micros(), accGyroMagOverload);
+		transmitBeamAngle(beamAngle, micros());
+		
+
+		PID(micros());
+		
 		
 		if(ledToggleCnt == 10000){// I hope this can indicate the load of the CPU
 				HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);	
@@ -298,8 +342,8 @@ void initState(struct matrix *basis, struct matrix *gravity, struct matrix* nort
 }
 // transmits array of vectors and sensor overload flag to PC via COM
 void transmitBasis(float* floatArray, uint64_t time, uint8_t overload){
-	static uint64_t prewTime;
-	if(time - prewTime < 100000) return;
+	static uint64_t prewTime = 0;
+	if(time - prewTime < 50000) return;
 	
 	uint8_t data[10];
 	
@@ -311,6 +355,72 @@ void transmitBasis(float* floatArray, uint64_t time, uint8_t overload){
 		
 	CDC_Transmit_FS(data, 10);
 }
+
+void transmitBeamAngle(float angle, uint64_t time){
+	static uint64_t prewTime = 0;
+	static uint8_t data[20];
+	static uint8_t counter = 0;
+	
+	if(time - prewTime < 20000) return;
+	angle = angle*100;
+	data[counter*2+1] = ((uint16_t)(angle)>>8)&0x00ff;
+	data[counter*2] = ((uint16_t)(angle))&0x00ff;
+//	counter ++;
+	prewTime = time;
+	CDC_Transmit_FS(data, 2);
+	
+//	if (counter == 10){
+//		CDC_Transmit_FS(data, 20);
+//		counter = 0;
+//	}
+}
+
+void PID(uint64_t time){
+	static uint64_t prewTime = 0;
+	uint32_t PIDperiod = time - prewTime;
+	float periodS;
+	static uint8_t firstIteration = 1;
+	static float anglePrev = 0, da = 0;
+	
+	if(PIDperiod < 5000) return;
+	prewTime = time;
+		
+	periodS = (float)PIDperiod*1e-6;
+	
+	if (firstIteration){
+		error = reqAngle - beamAngle;
+		errorPrev = error;
+		firstIteration = 0;
+		anglePrev = beamAngle;
+		return;
+	}
+	
+	errorPrev = error;
+	error = reqAngle - beamAngle;
+	S = +ks*sin(deg2rad*reqAngle);
+	P = 	kp*error;
+	P = (P > Plim) ? Plim : P;
+	P = (P < -Plim) ? -Plim: P;
+	I += 	ki*periodS*error;
+	I = (I > Ilim) ? Ilim : I;
+	I = (I < -Ilim) ? -Ilim: I;
+	
+	da = beamAngle-anglePrev;
+	anglePrev = beamAngle;
+	D = kd*da*fabs(da)/periodS * exp(-pow(error/Dsigma, 2));
+	PIDsumTmp = (P+I-D+S)/1000;	
+	
+	PIDsumTmp = (PIDsumTmp > 1) ? 1 : PIDsumTmp;
+	PIDsumTmp = (PIDsumTmp < 0) ? 0: PIDsumTmp;
+	
+	PIDsumTmp = (PIDsumTmp < 1e-6) ? 1e-6: PIDsumTmp; // защита от ошибки процессора
+	PIDnormedKoef = periodS/(PIDsumTau+periodS);
+	PIDsum = PIDnormedKoef*PIDsumTmp+(1-PIDnormedKoef)*PIDsum;  
+	
+	htim4.Instance->CCR2 = (uint16_t)(PIDsum * timSpan + timMin);
+	
+}
+
 // allign vertical orientation to mitigate drift of gyro sensors or after a loss of angles due to overload
 void restoreVertical(struct matrix* bas, struct matrix* grav, struct matrix* acc){
 	struct matrix	rotVec, Rinit;
@@ -324,10 +434,10 @@ void restoreVertical(struct matrix* bas, struct matrix* grav, struct matrix* acc
 		matrixCross(acc, grav, &rotVec);
 		matrixNormVec(&rotVec, &rotVec);
 		angle = -acos(-matrixDot(acc, grav)/(accLen*matrixVecLen(grav)));
-		if( angle < -0.03 || angle > 0.03){
+//		if( angle < -0.03 || angle > 0.03){
 			matrixRotArbVec(&Rinit, &rotVec, angle/50);
 			matrixMultiply(&Rinit, bas, bas);
-		}
+//		}
 	}
 }
 /* USER CODE END 4 */

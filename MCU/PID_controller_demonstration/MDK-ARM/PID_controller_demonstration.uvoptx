@@ -157,97 +157,108 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>178</LineNumber>
+          <LineNumber>232</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134218368</Address>
+          <Address>184</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>startup_stm32f411xe.s</Filename>
+          <Filename>../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\PID_controller_demonstration\startup_stm32f411xe.s\178</Expression>
+          <Expression>\\PID_controller_demonstration\../Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c\232</Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>ACx</ItemText>
+          <ItemText>beamAngle</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>ACy</ItemText>
+          <ItemText>kp</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>ACz</ItemText>
+          <ItemText>P</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>GYx</ItemText>
+          <ItemText>ki</ItemText>
         </Ww>
         <Ww>
           <count>4</count>
           <WinNumber>1</WinNumber>
-          <ItemText>GYy</ItemText>
+          <ItemText>I</ItemText>
         </Ww>
         <Ww>
           <count>5</count>
           <WinNumber>1</WinNumber>
-          <ItemText>GYz</ItemText>
+          <ItemText>kd</ItemText>
         </Ww>
         <Ww>
           <count>6</count>
           <WinNumber>1</WinNumber>
-          <ItemText>microsCnt/1000000,0x0A</ItemText>
+          <ItemText>D</ItemText>
         </Ww>
         <Ww>
           <count>7</count>
           <WinNumber>1</WinNumber>
-          <ItemText>data,0x0A</ItemText>
+          <ItemText>reqAngle</ItemText>
         </Ww>
         <Ww>
           <count>8</count>
           <WinNumber>1</WinNumber>
-          <ItemText>accTotal</ItemText>
+          <ItemText>Ilim</ItemText>
         </Ww>
         <Ww>
           <count>9</count>
           <WinNumber>1</WinNumber>
-          <ItemText>overload</ItemText>
+          <ItemText>PIDsum</ItemText>
         </Ww>
         <Ww>
           <count>10</count>
           <WinNumber>1</WinNumber>
-          <ItemText>basis</ItemText>
+          <ItemText>ks</ItemText>
         </Ww>
         <Ww>
           <count>11</count>
           <WinNumber>1</WinNumber>
-          <ItemText>accVec</ItemText>
+          <ItemText>Plim</ItemText>
         </Ww>
         <Ww>
           <count>12</count>
           <WinNumber>1</WinNumber>
-          <ItemText>accGyroPeriod,0x0A</ItemText>
+          <ItemText>PIDsum</ItemText>
         </Ww>
         <Ww>
           <count>13</count>
           <WinNumber>1</WinNumber>
-          <ItemText>periodS</ItemText>
-        </Ww>
-        <Ww>
-          <count>14</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>htim4,0x0A</ItemText>
+          <ItemText>Dsigma</ItemText>
         </Ww>
       </WatchWindow1>
+      <MemoryWindow1>
+        <Mm>
+          <WinNumber>1</WinNumber>
+          <SubType>0</SubType>
+          <ItemText>PIDsum</ItemText>
+          <AccSizeX>0</AccSizeX>
+        </Mm>
+      </MemoryWindow1>
+      <MemoryWindow2>
+        <Mm>
+          <WinNumber>2</WinNumber>
+          <SubType>0</SubType>
+          <ItemText>PIDsum</ItemText>
+          <AccSizeX>0</AccSizeX>
+        </Mm>
+      </MemoryWindow2>
       <Tracepoint>
         <THDelay>0</THDelay>
       </Tracepoint>
@@ -342,7 +353,7 @@
       <GroupNumber>2</GroupNumber>
       <FileNumber>3</FileNumber>
       <FileType>1</FileType>
-      <tvExp>1</tvExp>
+      <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
       <PathWithFileName>..\Core\Src\MICROS.c</PathWithFileName>
@@ -718,7 +729,7 @@
 
   <Group>
     <GroupName>Application/User/USB_DEVICE/App</GroupName>
-    <tvExp>1</tvExp>
+    <tvExp>0</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
