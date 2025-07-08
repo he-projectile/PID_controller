@@ -16,7 +16,7 @@ Y0 = [O0; omega0; integral0];
 tspan = [0 10];
 
 % Решение уравнения
-[t, Y] = ode45(@(t, Y) pendulumODE(t, Y, l, m, g, F, k, alpha, 5, 0.1, 2, 1), tspan, Y0);
+[t, Y] = ode45(@(t, Y) pendulumODE(t, Y, l, m, g, F, k, alpha, 5, 0.2, 0.5, 0.90), tspan, Y0);
 
 % Графики
 figure(1);
@@ -27,9 +27,12 @@ plot(t, rad2deg(Y(:,1)), 'r', 'LineWidth', 1.5);
 xlabel('Время (с)');
 ylabel('Угол O (град)');
 title('Динамика угла');
+ylim([0 120])
+grid on;
 
 subplot(2,1,2);
 plot(t, Y(:,2), 'b', 'LineWidth', 1.5);
 xlabel('Время (с)');
 ylabel('Угловая скорость ω (рад/с)');
 title('Динамика угловой скорости');
+grid on;

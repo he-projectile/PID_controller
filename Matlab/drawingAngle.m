@@ -8,7 +8,7 @@ xlabel('время'); ylabel('yгол, °');
 ylim([-5 185])
 % ylim([-0.125 0.125])
 
-IMU = serialport("COM3",115200,"Timeout",15);
+IMU = serialport("COM6",115200,"Timeout",15);
 
 coordinate=zeros(3,1);
 

@@ -65,7 +65,7 @@ struct microsPeriod cyclePeriod = {0, 0}, accGyroPeriod = {0, 0};
 float periodS;				
 
 const uint16_t timMin = 13200, timMax = 16800, timSpan = timMax - timMin;
-float kp = 10, ki = 0.001, kd = 20, ks = 700;
+float kp = 10, ki = 0.001, kd = 5, ks = 700;
 float P = 0, I = 0, D = 0, S = 0;
 float reqAngle = 90, error = 0, errorPrev = 0;	
 float Ilim = 200;
@@ -185,7 +185,6 @@ int main(void)
   {
 		static uint32_t ledToggleCnt = 0;
 		float GYxTmp, GYyTmp, GYzTmp;
-//		HAL_GPIO_TogglePin(StatusPin_GPIO_Port, StatusPin_Pin);
 			
 		MPU9255_cycle(micros());
 			
@@ -407,7 +406,12 @@ void PID(uint64_t time){
 	
 	da = beamAngle-anglePrev;
 	anglePrev = beamAngle;
-	D = kd*da*fabs(da)/periodS * exp(-pow(error/Dsigma, 2));
+//	D = kd*da*fabs(da)/periodS * exp(-pow(error/Dsigma, 2));
+	
+	if (da >= 0)
+		D = kd*da/periodS;
+	else 
+		D = kd*da/periodS * exp(-pow(error/Dsigma, 2));
 	PIDsumTmp = (P+I-D+S)/1000;	
 	
 	PIDsumTmp = (PIDsumTmp > 1) ? 1 : PIDsumTmp;
