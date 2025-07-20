@@ -14,16 +14,27 @@ coordinate=zeros(3,1);
 
 start = tic;
 prevTimeSample = toc(start);
-
+times=zeros(1,60/0.05);
+angles=zeros(1,60/0.05);
+cnt = 1;
 while 1
     angle=getIMUdata(IMU);
     
     timeSample = toc(start);
-    xlim([timeSample-5 timeSample])
     
-    plot(timeSample, angle, '.b')
+    times(cnt) = timeSample;
+    angles(cnt) = angle;
+    cnt = cnt + 1
+    if cnt == length(times)+1
+        break
+    end
+    
+%    xlim([timeSample-5 timeSample])    
+%    plot(timeSample, angle, '.b')
     
 end
+plot(times, angles, 'r');
+
 
 function angles=getIMUdata(port)
     flush(port, "input")
