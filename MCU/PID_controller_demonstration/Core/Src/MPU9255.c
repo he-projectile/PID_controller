@@ -29,9 +29,9 @@
 #define accYmult 0.9975
 #define accZmult 0.992
 
-//#define gyroXoffs 1.5807
-//#define gyroYoffs 1.6857
-//#define gyroZoffs 0.3176
+//#define gyroXoffs 1.5807 -2.85640097
+//#define gyroYoffs 1.6857 1.79603696
+//#define gyroZoffs 0.3176 -0.427743942
 
 #define gyroXmult 1
 #define gyroYmult 1
@@ -49,9 +49,9 @@ static uint64_t magTime=0, accGyroTime = 0;
 static uint8_t magDataReady = 0, accGyroDataReady = 0;
 static uint8_t* overload;
 
-static float gyroXoffs = 0;
-static float gyroYoffs = 0;
-static float gyroZoffs = 0;
+static float gyroXoffs = -2.85640097;
+static float gyroYoffs = 1.79603696;
+static float gyroZoffs = -0.427743942;
 	
 static void I2C_writeByte(I2C_HandleTypeDef* i2c, uint8_t devAddr, uint8_t regAddr, uint8_t data){
 	HAL_I2C_Mem_Write(i2c, devAddr, regAddr, I2C_MEMADD_SIZE_8BIT, &data, 1, 10);

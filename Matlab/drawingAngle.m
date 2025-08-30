@@ -8,7 +8,7 @@ xlabel('время'); ylabel('yгол, °');
 ylim([-5 185])
 % ylim([-0.125 0.125])
 
-IMU = serialport("COM6",115200,"Timeout",15);
+IMU = serialport("COM13",115200,"Timeout",15);
 
 coordinate=zeros(3,1);
 
@@ -24,13 +24,12 @@ while 1
     
     times(cnt) = timeSample;
     angles(cnt) = angle;
-    cnt = cnt + 1
     if cnt == length(times)+1
         break
     end
     
-%    xlim([timeSample-5 timeSample])    
-%    plot(timeSample, angle, '.b')
+   xlim([timeSample-5 timeSample])    
+   plot(timeSample, angle, '.b')
     
 end
 plot(times, angles, 'r');

@@ -60,18 +60,17 @@ float ACx, ACy, ACz, GYx, GYy, GYz, GYxPrev, GYyPrev, GYzPrev, MAGx, MAGy, MAGz,
 uint8_t accGyroMagOverload;
 const uint16_t PCazimuth = 345;
 
-struct microsPeriod cyclePeriod = {0, 0}, accGyroPeriod = {0, 0}; 
-										
-float periodS;				
+struct microsPeriod cyclePeriod = {0, 0}, accGyroPeriod = {0, 0}; 				
 
-const uint16_t timMin = 13200, timMax = 16800, timSpan = timMax - timMin;
-float kp = 10, ki = 0.001, kd = 5, ks = 700;
+const uint16_t timMin = 12000, timMax = 24000, timSpan = timMax - timMin;
+//float kp = 10, ki = 0.001, kd = 5, ks = 700;
+float kp = 1.3887, ki = 1, kd = 0.5, ks = 700;
 float P = 0, I = 0, D = 0, S = 0;
-float reqAngle = 90, error = 0, errorPrev = 0;	
-float Ilim = 200;
-float Plim = 400;
+float reqAngle = 90, error = 0;	
+float Ilim = 2;
+float Plim = 1;
 float Dsigma = 45;
-float PIDsumTau = 0.01, PIDsum = 0, PIDnormedKoef = 0, PIDsumTmp = 0;
+float PIDsumTau = 0.01, PIDsum = 0, PIDnormedKoef = 0, PIDsumTmp = 0, thrustPortion = 0;
 
 /* USER CODE END PV */
 
@@ -128,7 +127,7 @@ int main(void)
 	
 	htim4.Instance->PSC = 5;
 	htim4.Instance->ARR = 48000;
-	htim4.Instance->CCR2 = 12000;		
+	htim4.Instance->CCR2 = 0;		
 	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
 //	HAL_Delay(1000);
 //	htim4.Instance->CCR2 = 1000;
@@ -153,7 +152,7 @@ int main(void)
 	matrixZeroes(&transitionMatrix, 3, 3);
 	
 	matrixSE(&northVec, 0, 0, 1);
-	matrixRotZ(&northVec, PCazimuth);
+//	matrixRotZ(&northVec, PCazimuth);
 	// indication before the ongoing calibration. Sensor should be kept still!
 	HAL_Delay(500);
 	for(uint8_t v = 0; v<10; v++){
@@ -164,16 +163,22 @@ int main(void)
 	HAL_Delay(1000);
 	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 	
-	gyroCalib();
+	//gyroCalib();
 	
 	initState(&basis, &gravityVec, &northVec);
 	
 	matrixCopy(&basis, &basisStep1);
 	matrixInvOrth(&basisStep1, &basisStep1Inv);
 	
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+//	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+//	HAL_Delay(1000);
+//	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+//	HAL_Delay(2000);
+	
+	htim4.Instance->CCR2 = 12000;
 	HAL_Delay(1000);
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
+	
+	htim4.Instance->CCR2 = 13050;
 	HAL_Delay(2000);
 
   /* USER CODE END 2 */
@@ -183,6 +188,7 @@ int main(void)
 	microsStart(&accGyroPeriod);	
   while (1)
   {
+		static float periodS;
 		static uint32_t ledToggleCnt = 0;
 		float GYxTmp, GYyTmp, GYzTmp;
 			
@@ -214,8 +220,9 @@ int main(void)
 			matrixMultiply(&basis, &basisStep1Inv, &transitionMatrix);
 			beamAngleTmp = rad2deg*matrixRotMatrixRotAngle(&transitionMatrix);
 			
-			normedKoef = periodS/(beamAngleTau+periodS);
-      beamAngle = normedKoef*beamAngleTmp+(1-normedKoef)*beamAngle;  
+//			normedKoef = periodS/(beamAngleTau+periodS);
+//      beamAngle = normedKoef*beamAngleTmp+(1-normedKoef)*beamAngle;  
+			beamAngle = beamAngleTmp + 2.19;
 		}				
 		
 		// transmitBasis(basis.arr, micros(), accGyroMagOverload);
@@ -376,52 +383,69 @@ void transmitBeamAngle(float angle, uint64_t time){
 
 void PID(uint64_t time){
 	static uint64_t prewTime = 0;
-	uint32_t PIDperiod = time - prewTime;
-	float periodS;
+	static uint64_t PIDperiod = 0;
+	static float periodSPID;
 	static uint8_t firstIteration = 1;
 	static float anglePrev = 0, da = 0;
-	
-	if(PIDperiod < 5000) return;
-	prewTime = time;
-		
-	periodS = (float)PIDperiod*1e-6;
+	static uint16_t cnt = 0;
 	
 	if (firstIteration){
 		error = reqAngle - beamAngle;
-		errorPrev = error;
 		firstIteration = 0;
 		anglePrev = beamAngle;
+		prewTime = time;
 		return;
 	}
 	
-	errorPrev = error;
+	PIDperiod = (time - prewTime);
+	if(PIDperiod < 5000) return;
+	prewTime = time;
+	
+	cnt ++;
+	
+	if(cnt == 0xFFFF)
+		return;
+	
+	periodSPID = 1.0e-6*PIDperiod;
+	if (periodSPID > 1)
+		return;
+	
 	error = reqAngle - beamAngle;
 	S = +ks*sin(deg2rad*reqAngle);
-	P = 	kp*error;
-	P = (P > Plim) ? Plim : P;
-	P = (P < -Plim) ? -Plim: P;
-	I += 	ki*periodS*error;
+	P = 	kp*deg2rad*error;
+//	P = (P > Plim) ? Plim : P;
+//	P = (P < -Plim) ? -Plim: P;
+	I += 	ki*periodSPID*deg2rad*error;
 	I = (I > Ilim) ? Ilim : I;
 	I = (I < -Ilim) ? -Ilim: I;
 	
 	da = beamAngle-anglePrev;
 	anglePrev = beamAngle;
+	D = kd*deg2rad*da/periodSPID;
 //	D = kd*da*fabs(da)/periodS * exp(-pow(error/Dsigma, 2));
 	
-	if (da >= 0)
-		D = kd*da/periodS;
-	else 
-		D = kd*da/periodS * exp(-pow(error/Dsigma, 2));
-	PIDsumTmp = (P+I-D+S)/1000;	
+//	if (da >= 0)
+//		D = kd*da/periodS;
+//	else 
+//		D = kd*da/periodS * exp(-pow(error/Dsigma, 2));
+	
+	
+//	PIDsumTmp = (P+I-D+S)/1000;	
+
+	PIDsumTmp = (P+I-D);
 	
 	PIDsumTmp = (PIDsumTmp > 1) ? 1 : PIDsumTmp;
-	PIDsumTmp = (PIDsumTmp < 0) ? 0: PIDsumTmp;
+	PIDsumTmp = (PIDsumTmp < 0.1) ? 0.1 : PIDsumTmp;
 	
-	PIDsumTmp = (PIDsumTmp < 1e-6) ? 1e-6: PIDsumTmp; // защита от ошибки процессора
-	PIDnormedKoef = periodS/(PIDsumTau+periodS);
-	PIDsum = PIDnormedKoef*PIDsumTmp+(1-PIDnormedKoef)*PIDsum;  
+//	PIDsumTmp = (PIDsumTmp < 1e-5) ? 1e-5: PIDsumTmp; // защита от ошибки процессора
+//	PIDnormedKoef = periodS/(PIDsumTau+periodS);
+//	PIDsum = PIDnormedKoef*PIDsumTmp+(1-PIDnormedKoef)*PIDsum;
+
+	PIDsum = PIDsumTmp;
 	
-	htim4.Instance->CCR2 = (uint16_t)(PIDsum * timSpan + timMin);
+	thrustPortion = 3.88493*pow(PIDsum, 0.9859) + -3.4705*PIDsum + 0.0306;
+	
+	htim4.Instance->CCR2 = (uint16_t)(thrustPortion * timSpan + timMin);
 	
 }
 

@@ -6,8 +6,8 @@ m = 0.181;    % Масса (кг)
 psi = atan2(-4.145, 138.760); % рад
 J = 2036.662 /10^6+m*l^2; % кг м^2
 g = 9.81; % Ускорение свободного падения (м/с²)
-kv = 0.0003; % Трение оси
-ka = 0.0002;
+kv = 0.0001806; % Трение оси
+ka = 0.0001087;
 alpha = deg2rad(40);
 
 load("колебания луча эксперимент.mat")
@@ -19,7 +19,7 @@ omega0 = 0;   % Начальная угловая скорость
 Y0 = [O0; omega0];
 
 % Временной интервал
-tspan = [0 times(end)];
+tspan = [0 : 0.01 : times(end)];
 
 % Решение уравнения
 [t, Y] = ode45(@(t, Y) pendulumODE(t, Y, l, m, g, J, psi, kv, ka), tspan, Y0);
@@ -37,7 +37,7 @@ grid on;
 
 [pks_model, locs_model] = findpeaks(rad2deg(Y(:,1)), t);
 [pks_exp,   locs_exp]   = findpeaks(angles', times');
-pks_model_interp = interp1(locs_model, pks_model, locs_exp, 'linear', 'extrap');
+pks_model_interp = interp1(locs_model, pks_model, locs_exp, 'spline', 'extrap');
 
 
 plot(t, rad2deg(Y(:,1)), 'r', 'LineWidth', 2);
