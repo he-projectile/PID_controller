@@ -64,7 +64,7 @@ struct microsPeriod cyclePeriod = {0, 0}, accGyroPeriod = {0, 0};
 
 const uint16_t timMin = 12000, timMax = 24000, timSpan = timMax - timMin;
 //float kp = 10, ki = 0.001, kd = 5, ks = 700;
-float kp = 0.6, ki = 1, kd = 0.25, ks = 700;
+float kp = 0.6, ki = 1, kd = 0.125, ks = 700;
 float P = 0, I = 0, D = 0, S = 0;
 float reqAngle = 90, error = 0;	
 float Ilim = 2;
@@ -579,7 +579,7 @@ void PID(uint64_t time){
 
 //	PIDsum = PIDsumTmp;
 	
-	thrustPortion = 3.88493*powf(PIDsum, 0.9859) + -3.4705*PIDsum + 0.0306;
+	thrustPortion = 3.88493*powf(PIDsum, 0.9859) -3.4705*PIDsum + 0.0306;
 	
 	htim4.Instance->CCR2 = (uint16_t)(thrustPortion * timSpan + timMin);
 	
