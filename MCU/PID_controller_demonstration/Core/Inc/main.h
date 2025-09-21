@@ -64,7 +64,7 @@ void Error_Handler(void);
 #define KEY_GPIO_Port GPIOA
 #define KEY_EXTI_IRQn EXTI0_IRQn
 /* USER CODE BEGIN Private defines */
-
+//#define DEBUG
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

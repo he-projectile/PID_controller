@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include "dsp/fast_math_functions.h"
 
 static void matrixRenewArray(struct matrix*, uint8_t, uint8_t, float*);
 
@@ -145,8 +146,8 @@ uint8_t matrixCross(struct matrix* input1, struct matrix* input2, struct matrix*
 uint8_t matrixRotZ(struct matrix* output, float angle) {
 	float s, c;
 	angle *= deg2rad;
-	s = sin(angle);
-	c = cos(angle);
+	s = arm_sin_f32(angle);
+	c = arm_cos_f32(angle);
 	output->arr[0] = c;
 	output->arr[1] = -s;
 	output->arr[2] = 0;
@@ -163,8 +164,8 @@ uint8_t matrixRotZ(struct matrix* output, float angle) {
 uint8_t matrixRotY(struct matrix* output, float angle) {
 	float s, c;
 	angle *= deg2rad;
-	s = sin(angle);
-	c = cos(angle);
+	s = arm_sin_f32(angle);
+	c = arm_cos_f32(angle);
 	output->arr[0] = c;
 	output->arr[1] = 0;
 	output->arr[2] = s;
@@ -181,8 +182,8 @@ uint8_t matrixRotY(struct matrix* output, float angle) {
 uint8_t matrixRotX(struct matrix* output, float angle) {
 	float s, c;
 	angle *= deg2rad;
-	s = sin(angle);
-	c = cos(angle);
+	s = arm_sin_f32(angle);
+	c = arm_cos_f32(angle);
 	output->arr[0] = 1;
 	output->arr[1] = 0;
 	output->arr[2] = 0;	
@@ -215,8 +216,8 @@ uint8_t matrixRot3D(struct matrix* output, float angleX, float angleY, float ang
 uint8_t matrixRotArbVec(struct matrix* output, struct matrix* rotVec, float angle){
 		if (output->size != 9 || rotVec->size != 3) return 1;
 		float c, s, lx, ly, lz;
-		c=cos(angle);
-		s=sin(angle);
+		c=arm_cos_f32(angle);
+		s=arm_sin_f32(angle);
 		lx=rotVec->arr[0]; ly=rotVec->arr[1]; lz=rotVec->arr[2];
 		matrixSE(output,	0,	0, c+(1-c)*lx*lx		);
 		matrixSE(output,	0,	1, (1-c)*lx*ly-s*lz	);

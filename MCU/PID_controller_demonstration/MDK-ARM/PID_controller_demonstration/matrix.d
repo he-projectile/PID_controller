@@ -37,4 +37,13 @@ pid_controller_demonstration/matrix.o: ..\Core\Src\MATRIX.c \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_ll_usb.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_pcd_ex.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\math.h \
-  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdlib.h
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdlib.h \
+  C:\Users\barko\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\DSP\Include\dsp\fast_math_functions.h \
+  C:\Users\barko\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\DSP\Include\arm_math_types.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\float.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\limits.h \
+  C:\Users\barko\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\DSP\Include\arm_math_memory.h \
+  C:\Users\barko\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\DSP\Include\dsp\none.h \
+  C:\Users\barko\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\DSP\Include\dsp\utils.h \
+  C:\Users\barko\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\DSP\Include\dsp\basic_math_functions.h

@@ -43,9 +43,17 @@ pid_controller_demonstration/main.o: ..\Core\Src\main.c \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdlib.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h ..\Core\Inc\gpio.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\math.h ..\Core\Inc\MATRIX.h \
-  ..\Core\Inc\MICROS.h ..\Core\Inc\MPU9255.h \
+  ..\Core\Inc\MICROS.h ..\Core\Inc\MPU6050.h \
   ..\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc\usbd_cdc.h \
   ..\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_ioreq.h \
   ..\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_core.h \
   ..\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_ctlreq.h \
-  ..\USB_DEVICE\App\usbd_cdc_if.h
+  ..\USB_DEVICE\App\usbd_cdc_if.h \
+  C:\Users\barko\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\DSP\Include\dsp\fast_math_functions.h \
+  C:\Users\barko\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\DSP\Include\arm_math_types.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\float.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\limits.h \
+  C:\Users\barko\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\DSP\Include\arm_math_memory.h \
+  C:\Users\barko\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\DSP\Include\dsp\none.h \
+  C:\Users\barko\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\DSP\Include\dsp\utils.h \
+  C:\Users\barko\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\DSP\Include\dsp\basic_math_functions.h

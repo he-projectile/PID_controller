@@ -19,8 +19,8 @@ Y0 = [O0; omega0; integral0];
 tspan = [0: 0.001: 10];    
 
 Kp = 0.6; %1.3887;
-Ki = 1.0000; %1;  
-Kd = 0.25; %0.5;  
+Ki = 1.5; %1;  
+Kd = 0.2; %0.5;  
 Ks = 00; %0.00
 % Решение диффура
 alpha = deg2rad(90); % Цель
@@ -108,11 +108,11 @@ function dYdt = pendulumODE(t, Y, l, m, g, J, psi, kv, ka, F_T, l_T, alpha, Kp, 
     
     d_integral=e;
     
-    if Y(3)>1
-        Y(3) = 1;
+    if Y(3)>2
+        Y(3) = 2;
     end
-    if Y(3)<-1
-        Y(3) = -1;  
+    if Y(3)<-2
+        Y(3) = -2;  
     end
     integral = Y(3); 
     

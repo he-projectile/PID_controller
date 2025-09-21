@@ -23,7 +23,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "MPU9255.h"
+#include "MPU6050.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,7 +62,7 @@ extern DMA_HandleTypeDef hdma_i2c1_rx;
 extern I2C_HandleTypeDef hi2c1;
 extern TIM_HandleTypeDef htim3;
 /* USER CODE BEGIN EV */
-
+extern MPU6050_DATA_STRUCTURE MPU6050entity1;
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -269,7 +269,7 @@ void I2C1_EV_IRQHandler(void)
   /* USER CODE END I2C1_EV_IRQn 0 */
   HAL_I2C_EV_IRQHandler(&hi2c1);
   /* USER CODE BEGIN I2C1_EV_IRQn 1 */
-	MPU9255_IT();
+	MPU6050_ReceiveIT(&MPU6050entity1);
   /* USER CODE END I2C1_EV_IRQn 1 */
 }
 

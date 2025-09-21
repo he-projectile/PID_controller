@@ -32,9 +32,12 @@
 #include <math.h>
 #include "MATRIX.h"
 #include "MICROS.h"
-#include "MPU9255.h"
+#include "MPU6050.h"
 #include "usbd_cdc.h"
 #include "usbd_cdc_if.h"
+
+#include "dsp/fast_math_functions.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,6 +57,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+
+
 float ACx, ACy, ACz, GYx, GYy, GYz, GYxPrev, GYyPrev, GYzPrev, MAGx, MAGy, MAGz,
 	accTotal, gyroTotal, magTotal, 
 	beamAngle, beamAngleTau = 0.001;
@@ -64,14 +69,32 @@ struct microsPeriod cyclePeriod = {0, 0}, accGyroPeriod = {0, 0};
 
 const uint16_t timMin = 12000, timMax = 24000, timSpan = timMax - timMin;
 //float kp = 10, ki = 0.001, kd = 5, ks = 700;
-float kp = 0.6, ki = 1, kd = 0.125, ks = 700;
+float kp = 1.2964, ki = 2, kd = 0.1604, ks = 700;
 float P = 0, I = 0, D = 0, S = 0;
 float reqAngle = 90, error = 0;	
 float Ilim = 2;
 float Plim = 1;
 float Dsigma = 45;
 float PIDsumTau = 0.001, PIDsum = 0, PIDnormedKoef = 0, PIDsumTmp = 0, thrustPortion = 0;
-float accWeight = 9.99999975e-05;
+float accWeight = 2e-04;
+
+MPU6050_DATA_STRUCTURE MPU6050entity1 = {
+	.i2cHandle = &hi2c1, .i2cAddress = 0x68<<1,
+	.accRawDataBuffer = {0}, .gyroRawDataBuffer = {0},
+	.MPU6050state = 0, .overload = 0,
+	.accRequestPeriodUs = 10000, .gyroRequestPeriodUs = 2000,
+	.accPrevRequestUs = 0, .gyroPrevRequestUs = 0,
+	.filterTauUs = 1000, .accPrevFilterUs = 0, .gyroPrevFilterUs = 0,
+	.processedDataReady = 0,
+	.accDataRequest = 0, .gyroDataRequest = 0,
+	.compensatorACx = {1, 0}, .compensatorACy = {1, 0}, .compensatorACz = {1, 0}, 
+	.compensatorGYx = {1, 0}, .compensatorGYy = {1, 0}, .compensatorGYz = {1, 0}, 
+	.ACx = 0, .ACy = 0, .ACz = 0, .GYx = 0, .GYy = 0, .GYz = 0
+	#ifdef DEBUG	
+	, .accMesCnt = 0, .gyroMesCnt = 0,.initMicros = 0
+	#endif
+};
+
 
 #define RX_BUF_SIZE 64
 const uint8_t RxBufSize = RX_BUF_SIZE;
@@ -157,7 +180,7 @@ int main(void)
 //	htim4.Instance->CCR2 = 1000;
 	
 	// startup the sensor, assign pointers of ACC, GYRO, MAG and overload flag variables	
-	MPU9255setup(&hi2c1, &ACx, &ACy, &ACz, &GYx, &GYy, &GYz, &accGyroMagOverload);
+	MPU6050setup(&MPU6050entity1);
 	
 	struct matrix accVec,	gyroVec, magVec, rotMatrix, basis, gravityVec, northVec, velocityVec, coordinate, basisStep1, basisStep1Inv, plug, transitionMatrix;
 	
@@ -187,12 +210,10 @@ int main(void)
 	HAL_Delay(1000);
 	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 	
-	gyroCalib();
+	gyroMeasureOffset(&MPU6050entity1);
 	microsStart(&accGyroPeriod);	
 	htim4.Instance->CCR2 = 12000;
 	
-	
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -202,6 +223,7 @@ int main(void)
   {
 		static float periodS;
 		static uint32_t ledToggleCnt = 0;
+		static uint8_t newAngleReady = 0;
 			
 		switch (stage){
 			case STAGE_DEINIT:{
@@ -228,8 +250,11 @@ int main(void)
 					stage = STAGE_RUNNING;		
 				}
 			} break;			
-			case STAGE_RUNNING:{		
-				PID(micros());				
+			case STAGE_RUNNING:{	
+				if (newAngleReady){
+					PID(micros());
+					newAngleReady = 0;
+				}
 			} break;
 			case STAGE_STOPPING:{
 				static uint8_t isStopping = 0;
@@ -261,37 +286,54 @@ int main(void)
 			}break;
 		};
 			
-		MPU9255_cycle(micros());				
-		if( MPU9255_ACC_GYRO_isReady() == 1){
-			float GYxTmp, GYyTmp, GYzTmp;
-			float normedKoef, beamAngleTmp;
-			matrixSE(&accVec, 0, 0, ACx);
-			matrixSE(&accVec, 1, 0, ACy);
-			matrixSE(&accVec, 2, 0, ACz);
+		MPU6050_cycle(&MPU6050entity1, micros());		
+		
+		if ( MPU6050_ACC_isReady(&MPU6050entity1) == 1 ){	
+			matrixSE(&accVec, 0, 0, MPU6050entity1.ACx);
+			matrixSE(&accVec, 1, 0, MPU6050entity1.ACy);
+			matrixSE(&accVec, 2, 0, MPU6050entity1.ACz);
 			accTotal = matrixVecLen(&accVec);
+			
+			matrixMultiply(&basis, &accVec, &accVec);
+			restoreVertical(&basis, &gravityVec, &accVec);
+			matrixSum(&accVec, &gravityVec, &accVec);						
+		}
+
+		if ( MPU6050_ACC_isReady(&MPU6050entity1) == 1 ){	
+			matrixSE(&accVec, 0, 0, MPU6050entity1.ACx);
+			matrixSE(&accVec, 1, 0, MPU6050entity1.ACy);
+			matrixSE(&accVec, 2, 0, MPU6050entity1.ACz);
+			accTotal = matrixVecLen(&accVec);
+			
+			matrixMultiply(&basis, &accVec, &accVec);
+			restoreVertical(&basis, &gravityVec, &accVec);
+			matrixSum(&accVec, &gravityVec, &accVec);						
+		}
+		
+		
+		
+		if( MPU6050_GYRO_isReady(&MPU6050entity1) == 1){
+			float GYxTmp, GYyTmp, GYzTmp;
+			float beamAngleTmp;
 			
 			microsUpdate(&accGyroPeriod);
 			periodS = (float) accGyroPeriod.period*1e-6;
-			GYxTmp = (GYx+GYxPrev)/2 * periodS;
-			GYyTmp = (GYy+GYyPrev)/2 * periodS;
-			GYzTmp = (GYz+GYzPrev)/2 * periodS;
-			GYxPrev = GYx;
-			GYyPrev = GYy;
-			GYzPrev = GYz;	
+			// Линейная интерполяция
+			GYxTmp = (MPU6050entity1.GYx+GYxPrev)/2 * periodS;
+			GYyTmp = (MPU6050entity1.GYy+GYyPrev)/2 * periodS;
+			GYzTmp = (MPU6050entity1.GYz+GYzPrev)/2 * periodS;
+			GYxPrev = MPU6050entity1.GYx;
+			GYyPrev = MPU6050entity1.GYy;
+			GYzPrev = MPU6050entity1.GYz;	
 			
 			matrixRot3D(&rotMatrix, GYxTmp, GYyTmp, GYzTmp);
 			matrixMultiply(&basis, &rotMatrix, &basis);
 			
-			matrixMultiply(&basis, &accVec, &accVec);
-			restoreVertical(&basis, &gravityVec, &accVec);
-			matrixSum(&accVec, &gravityVec, &accVec);
-			
 			matrixMultiply(&basis, &basisStep1Inv, &transitionMatrix);
 			beamAngleTmp = rad2deg*matrixRotMatrixRotAngle(&transitionMatrix);
 			
-			//			normedKoef = periodS/(beamAngleTau+periodS);
-			//      beamAngle = normedKoef*beamAngleTmp+(1-normedKoef)*beamAngle;  
-			beamAngle = beamAngleTmp + 2.19;
+			beamAngle = beamAngleTmp + 2.19; // 2.19 градусов - смещение свободно висящего луча
+			newAngleReady = 1;
 		}		
 		
 		transmitBeamAngle(beamAngle, P, I, D, micros());	
@@ -420,19 +462,15 @@ void initState(struct matrix *basis, struct matrix *gravity, struct matrix* nort
 	matrixZeroes(&acc, 3,1);
 	matrixZeroes(&imGravity, 3,1);
 	matrixZeroes(&magInit, 3, 1);
-	// acquisition ACC GYRO MAG meawurements
+	// acquisition ACC meawurements
 	for(uint8_t i = 0; i < 100; i++){
-		while ( MPU9255_cycle(micros()) && 1<<0 == 0)
-			HAL_Delay(1);
 		
-		while (MPU9255_ACC_GYRO_isReady() == 0){
-			HAL_Delay(1);
-			MPU9255_cycle(micros());
-		}
+		while (MPU6050_ACC_isReady(&MPU6050entity1) == 0)
+			MPU6050_cycle(&MPU6050entity1, micros());
 			
-		acc.arr[0] += ACx;
-		acc.arr[1] += ACy;
-		acc.arr[2] += ACz;
+		acc.arr[0] += MPU6050entity1.ACx;
+		acc.arr[1] += MPU6050entity1.ACy;
+		acc.arr[2] += MPU6050entity1.ACz;
 	}
 	//// vertical alignment
 	matrixMultiplyByNumb(&acc, gravity, -0.01);
@@ -440,7 +478,7 @@ void initState(struct matrix *basis, struct matrix *gravity, struct matrix* nort
 	matrixCross(gravity, &imGravity, &rotVec);
 	matrixNormVec(&rotVec, &rotVec);
 	
-	theta = acos(matrixDot(gravity, &imGravity)/(matrixVecLen(&imGravity)*matrixVecLen(gravity)));
+	theta = acosf(matrixDot(gravity, &imGravity)/(matrixVecLen(&imGravity)*matrixVecLen(gravity)));
 	matrixRotArbVec(&Rinit, &rotVec, theta);
 	
 	matrixMultiply(&Rinit, basis , basis);
@@ -465,6 +503,27 @@ void initState(struct matrix *basis, struct matrix *gravity, struct matrix* nort
 	
 	matrixMultiply(&Rinit, basis , basis);*/
 }
+
+// allign vertical orientation to mitigate drift of gyro sensors or after a loss of angles due to overload
+void restoreVertical(struct matrix* bas, struct matrix* grav, struct matrix* acc){
+	struct matrix	rotVec, Rinit;
+	float accLen, angle;
+	
+	matrixZeroes(&rotVec, 3,1);
+	matrixZeroes(&Rinit, 3,3);
+	accLen = matrixVecLen(acc);
+	
+	if( accLen > 9 && accLen <  11){
+		matrixCross(acc, grav, &rotVec);
+		matrixNormVec(&rotVec, &rotVec);
+		angle = -acos(-matrixDot(acc, grav)/(accLen*matrixVecLen(grav)));
+//		if( angle < -0.03 || angle > 0.03){
+			matrixRotArbVec(&Rinit, &rotVec, angle*accWeight);
+			matrixMultiply(&Rinit, bas, bas);
+//		}
+	}
+}
+
 // transmits array of vectors and sensor overload flag to PC via COM
 void transmitBasis(float* floatArray, uint64_t time, uint8_t overload){
 	static uint64_t prewTime = 0;
@@ -529,7 +588,7 @@ void PID(uint64_t time){
 	}
 	
 	PIDperiod = (time - prewTime);
-	if(PIDperiod < 5000) return;
+//	if(PIDperiod < 1000) return;
 	prewTime = time;
 	
 	cnt ++;
@@ -585,25 +644,7 @@ void PID(uint64_t time){
 	
 }
 
-// allign vertical orientation to mitigate drift of gyro sensors or after a loss of angles due to overload
-void restoreVertical(struct matrix* bas, struct matrix* grav, struct matrix* acc){
-	struct matrix	rotVec, Rinit;
-	float accLen, angle;
-	
-	matrixZeroes(&rotVec, 3,1);
-	matrixZeroes(&Rinit, 3,3);
-	accLen = matrixVecLen(acc);
-	
-	if( accLen > 9 && accLen <  11){
-		matrixCross(acc, grav, &rotVec);
-		matrixNormVec(&rotVec, &rotVec);
-		angle = -acos(-matrixDot(acc, grav)/(accLen*matrixVecLen(grav)));
-//		if( angle < -0.03 || angle > 0.03){
-			matrixRotArbVec(&Rinit, &rotVec, angle*accWeight);
-			matrixMultiply(&Rinit, bas, bas);
-//		}
-	}
-}
+
 /* USER CODE END 4 */
 
 /**

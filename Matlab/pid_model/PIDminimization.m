@@ -36,21 +36,21 @@ function dYdt = pendulumODE(t, Y, l, m, g, J, psi, kv, ka, F_T, l_T, alpha, Kp, 
     
     d_integral=e;
     
-    if Y(3)>10
-        Y(3) = 10;
+    if Y(3)>2
+        Y(3) = 2;
     end
-    if Y(3)<-10
-        Y(3) = -10;
+    if Y(3)<-2
+        Y(3) = -2;
     end
     integral = Y(3); 
     
-    U = Kp*e+Ki*integral-Kd*omega+Ks*sin(alpha);
+    U = Kp*e+Ki*integral-Kd*omega;
 
     if U>1
         U = 1;
     end
-    if U < 0.1/0.6
-        U = 0.1/0.6;
+    if U < 0.1
+        U = 0.1;
     end
     F = F_T*U;
   
@@ -73,7 +73,7 @@ F_T=0.148*g; % Максимальная тяга пропеллера, Н
 alpha = deg2rad(90); % Цель
 
 % Начальные условия
-O0 = deg2rad(0);    % Начальный угол
+O0 = deg2rad(13.5);    % Начальный угол
 omega0 = 0;   % Начальная угловая скорость
 integral0 = 0;
 Y0 = [O0; omega0; integral0];

@@ -159,7 +159,7 @@
           <Type>0</Type>
           <LineNumber>232</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>272</Address>
+          <Address>184</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
@@ -265,22 +265,27 @@
         <Ww>
           <count>18</count>
           <WinNumber>1</WinNumber>
-          <ItemText>filterTauUs</ItemText>
+          <ItemText>accWeight</ItemText>
         </Ww>
         <Ww>
           <count>19</count>
           <WinNumber>1</WinNumber>
-          <ItemText>ACx</ItemText>
+          <ItemText>MPU6050entity1,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>20</count>
           <WinNumber>1</WinNumber>
-          <ItemText>GYz</ItemText>
+          <ItemText>microsCnt,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>21</count>
           <WinNumber>1</WinNumber>
-          <ItemText>accWeight</ItemText>
+          <ItemText>(microsCnt- MPU6050entity1.initMicros)/ MPU6050entity1.accMesCnt,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>22</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>(microsCnt- MPU6050entity1.initMicros)/ MPU6050entity1.gyroMesCnt,0x0A</ItemText>
         </Ww>
       </WatchWindow1>
       <MemoryWindow1>
@@ -408,8 +413,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\Core\Src\MPU9255.c</PathWithFileName>
-      <FilenameWithoutPath>MPU9255.c</FilenameWithoutPath>
+      <PathWithFileName>..\Core\Src\MPU6050.c</PathWithFileName>
+      <FilenameWithoutPath>MPU6050.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>
@@ -889,7 +894,7 @@
 
   <Group>
     <GroupName>::CMSIS</GroupName>
-    <tvExp>0</tvExp>
+    <tvExp>1</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>1</RteFlg>
