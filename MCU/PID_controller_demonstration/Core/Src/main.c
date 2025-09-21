@@ -579,7 +579,7 @@ void PID(uint64_t time){
 
 //	PIDsum = PIDsumTmp;
 	
-	thrustPortion = 3.88493*pow(PIDsum, 0.9859) + -3.4705*PIDsum + 0.0306;
+	thrustPortion = 3.88493*powf(PIDsum, 0.9859) + -3.4705*PIDsum + 0.0306;
 	
 	htim4.Instance->CCR2 = (uint16_t)(thrustPortion * timSpan + timMin);
 	
