@@ -10,7 +10,7 @@ l_T = 0.254; % Плечо пропеллера, м
 F_T=0.148*g; % Максимальная тяга пропеллера, Н
 
 % Начальные условия
-O0 = deg2rad(9.5);    % Начальный угол
+O0 = deg2rad(13.5);    % Начальный угол 9.5
 omega0 = 0;   % Начальная угловая скорость
 integral0 = 0;
 Y0 = [O0; omega0; integral0];
@@ -18,9 +18,9 @@ Y0 = [O0; omega0; integral0];
 % Время моделирования
 tspan = [0: 0.001: 10];    
 
-Kp = 1.3887;
-Ki = 1;  
-Kd = 0.5;
+Kp = 1.2635; %1.3887;
+Ki = 2.0000; %1;  
+Kd = 0.5; %0.5;  
 Ks = 00; %0.00
 % Решение диффура
 alpha = deg2rad(90); % Цель
@@ -35,17 +35,18 @@ delayedAngle = [O0 O0 0];
 figure(4); % Создаю график с номером 1 / Обращаюсь к графику 1
 clf(figure(4)) % Чищу график 1
 
-subAxesTop = subplot(2, 1, 1);
+% subAxesTop = subplot(2, 1, 1);
 xlabel('Время, с');
-ylabel('Наклон луча, град)');
+ylabel('Наклон луча, град');
 title('Динамика угла');
-ylim([0 120])
+ylim([0 130])
 hold on; grid on;
 
-plot(subAxesTop, logData(:,1), rad2deg(logData(:,2)), 'b', 'LineWidth', 1.5);
+% plot(subAxesTop, logData(:,1), rad2deg(logData(:,2)), 'b', 'LineWidth', 1.5);
+plot( t, rad2deg(Y(:,1)), 'b', 'LineWidth', 3);
 
-yline(rad2deg(alpha),'r', 'y_∞', 'LabelHorizontalAlignment','left', 'LineWidth', 1.5)
-yline(rad2deg(max(Y(:,1))),'k', 'y_{max}', 'LabelHorizontalAlignment','left')
+yline(rad2deg(alpha),'r', 'y_{ЗЗ}', 'LabelHorizontalAlignment','left', 'LineWidth', 2, 'FontSize', 20)
+yline(rad2deg(max(Y(:,1))),'k', 'y_{max}', 'LabelHorizontalAlignment','left', 'LineWidth', 2, 'FontSize', 20)
 
 delta_r = 1-80/90;
 T_r = t(end);
@@ -56,23 +57,23 @@ for i = flip(1 : length(t))
     end
 end
 
-yline(rad2deg(alpha)*(1-delta_r), 'r', 'y_∞-\Delta', 'LabelHorizontalAlignment','left')
-yline(rad2deg(alpha)*(1+delta_r), 'r', 'y_∞+\Delta', 'LabelHorizontalAlignment','left')
-xline(T_r, 'k', 'T_{ПП}', 'LabelOrientation', 'horizontal', 'LabelVerticalAlignment', 'top')
+yline(rad2deg(alpha)*(1-delta_r), 'r', 'y_{ЗЗ}-\Delta', 'LabelHorizontalAlignment','left', 'LineWidth', 2, 'FontSize', 20)
+yline(rad2deg(alpha)*(1+delta_r), 'r', 'y_{ЗЗ}+\Delta', 'LabelHorizontalAlignment','left', 'LineWidth', 2, 'FontSize', 20)
+xline(T_r, 'k', 'T_{ПП}', 'LabelOrientation', 'horizontal', 'LabelVerticalAlignment', 'top', 'LineWidth', 2, 'FontSize', 20)
 
-subAxesBot = subplot(2, 1, 2);
-xlabel('Время, с');
-ylabel('Коэффициенты');
-title('Динамика угла');
-ylim([-2 2])
-hold on; grid on;
-
-plot(subAxesBot, logData(:,1), logData(:,3), 'b');
-plot(subAxesBot, logData(:,1), logData(:,4), 'r');
-plot(subAxesBot, logData(:,1), logData(:,5), 'g');
-yline(0,'k')
-
-linkaxes([subAxesTop, subAxesBot], 'x');
+% subAxesBot = subplot(2, 1, 2);
+% xlabel('Время, с');
+% ylabel('Коэффициенты');
+% title('Динамика угла');
+% ylim([-2 2])
+% hold on; grid on;
+% 
+% plot(subAxesBot, logData(:,1), logData(:,3), 'b');
+% plot(subAxesBot, logData(:,1), logData(:,4), 'r');
+% plot(subAxesBot, logData(:,1), logData(:,5), 'g');
+% yline(0,'k')
+% 
+% linkaxes([subAxesTop, subAxesBot], 'x');
 
 
 % 
@@ -96,13 +97,14 @@ function dYdt = pendulumODE(t, Y, l, m, g, J, psi, kv, ka, F_T, l_T, alpha, Kp, 
     O = Y(1);         % Угол O
     omega = Y(2);     % Угловая скорость dO/dt
     
-    global delayedAngle;
-    if delayedAngle(3)+0.0045 <= t
-         delayedAngle = [O delayedAngle(1) t];
-         delayedAngle(3) = t;
-    end
+%     global delayedAngle;
+%     if delayedAngle(3)+0.0045 <= t
+%          delayedAngle = [O delayedAngle(1) t];
+%          delayedAngle(3) = t;
+%     end
     
-    e = (alpha-delayedAngle(1));
+%    e = (alpha-delayedAngle(1));
+    e = alpha - O;
     
     d_integral=e;
     
@@ -110,11 +112,12 @@ function dYdt = pendulumODE(t, Y, l, m, g, J, psi, kv, ka, F_T, l_T, alpha, Kp, 
         Y(3) = 1;
     end
     if Y(3)<-1
-        Y(3) = -1;
+        Y(3) = -1;  
     end
     integral = Y(3); 
     
-    D = Kd*(delayedAngle(1) - delayedAngle(2))/0.0045;
+%     D = Kd*(delayedAngle(1) - delayedAngle(2))/0.0045;
+    D = Kd*omega;
     
     U = Kp*e+Ki*integral-D+Ks*sin(alpha);
 
@@ -128,8 +131,8 @@ function dYdt = pendulumODE(t, Y, l, m, g, J, psi, kv, ka, F_T, l_T, alpha, Kp, 
   
     domegadt = (F*l_T-m*g*l*sin(O-psi)-kv*omega*t-ka*omega^2*sign(omega)*t)/J;
     
-    global logData;
-    logData = [logData; t, O, Kp*e, Ki*integral, -Kd*omega];
+%     global logData;
+%     logData = [logData; t, O, Kp*e, Ki*integral, -Kd*omega];
 
     dYdt = [omega; domegadt; d_integral];  % Возвращаем вектор производных
 end

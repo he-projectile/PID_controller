@@ -64,13 +64,37 @@ struct microsPeriod cyclePeriod = {0, 0}, accGyroPeriod = {0, 0};
 
 const uint16_t timMin = 12000, timMax = 24000, timSpan = timMax - timMin;
 //float kp = 10, ki = 0.001, kd = 5, ks = 700;
-float kp = 1.3887, ki = 1, kd = 0.5, ks = 700;
+float kp = 0.6, ki = 1, kd = 0.25, ks = 700;
 float P = 0, I = 0, D = 0, S = 0;
 float reqAngle = 90, error = 0;	
 float Ilim = 2;
 float Plim = 1;
 float Dsigma = 45;
-float PIDsumTau = 0.01, PIDsum = 0, PIDnormedKoef = 0, PIDsumTmp = 0, thrustPortion = 0;
+float PIDsumTau = 0.001, PIDsum = 0, PIDnormedKoef = 0, PIDsumTmp = 0, thrustPortion = 0;
+float accWeight = 9.99999975e-05;
+
+#define RX_BUF_SIZE 64
+const uint8_t RxBufSize = RX_BUF_SIZE;
+uint8_t RxBuf[RX_BUF_SIZE], protectFromWrite = 0, RxPayload[RX_BUF_SIZE];
+
+typedef enum{
+	STAGE_DEINIT = 0,
+	STAGE_WAITING_FOR_START,
+	STAGE_PREPARING,
+	STAGE_RUNNING,
+	STAGE_STOPPING,
+	STAGE_RESTART,
+} STAGES;
+STAGES stage;
+
+typedef enum{
+	COMMAND_NONE,
+	COMMAND_RESTART,
+	COMMAND_RUN,
+	COMMAND_STOP,
+	COMMAND_CHANGE_VALUE	
+} COMMAND;
+COMMAND command;
 
 /* USER CODE END PV */
 
@@ -78,7 +102,7 @@ float PIDsumTau = 0.01, PIDsum = 0, PIDnormedKoef = 0, PIDsumTmp = 0, thrustPort
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 void transmitBasis(float* floatArray, uint64_t time, uint8_t overload);
-void transmitBeamAngle(float angle, uint64_t time);
+void transmitBeamAngle(float angle, float P, float I, float D, uint64_t time);
 void initState(struct matrix *basis, struct matrix *gravity, struct matrix* north);
 void restoreVertical(struct matrix* bas, struct matrix* grav, struct matrix* acc);
 void PID(uint64_t time);
@@ -163,38 +187,83 @@ int main(void)
 	HAL_Delay(1000);
 	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 	
-	//gyroCalib();
-	
-	initState(&basis, &gravityVec, &northVec);
-	
-	matrixCopy(&basis, &basisStep1);
-	matrixInvOrth(&basisStep1, &basisStep1Inv);
-	
-//	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-//	HAL_Delay(1000);
-//	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-//	HAL_Delay(2000);
-	
+	gyroCalib();
+	microsStart(&accGyroPeriod);	
 	htim4.Instance->CCR2 = 12000;
-	HAL_Delay(1000);
 	
-	htim4.Instance->CCR2 = 13050;
-	HAL_Delay(2000);
+	
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	microsStart(&accGyroPeriod);	
+	
   while (1)
   {
 		static float periodS;
 		static uint32_t ledToggleCnt = 0;
-		float GYxTmp, GYyTmp, GYzTmp;
 			
-		MPU9255_cycle(micros());
+		switch (stage){
+			case STAGE_DEINIT:{
+				initState(&basis, &gravityVec, &northVec);
+				
+				matrixCopy(&basis, &basisStep1);
+				matrixInvOrth(&basisStep1, &basisStep1Inv);				
+				stage = STAGE_WAITING_FOR_START;
+			} break;
+			case STAGE_WAITING_FOR_START:{
+				if (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin) == GPIO_PIN_RESET)
+					stage = STAGE_PREPARING;						
+			} break;
+			case STAGE_PREPARING:{
+				static uint8_t isPreparing = 0;
+				static uint64_t prepatingStartTime = 0;
+				if ( isPreparing == 0){
+					isPreparing = 1;
+					prepatingStartTime = micros();
+					htim4.Instance->CCR2 = 13050;
+				}	
+				else if (micros() - prepatingStartTime > 10000000){
+					isPreparing = 0;
+					stage = STAGE_RUNNING;		
+				}
+			} break;			
+			case STAGE_RUNNING:{		
+				PID(micros());				
+			} break;
+			case STAGE_STOPPING:{
+				static uint8_t isStopping = 0;
+				static uint64_t stoppingTime = 0;
+				if ( isStopping == 0){
+					isStopping = 1;
+					stoppingTime = micros();
+				}	
+				else if (micros() - stoppingTime > 10000){
+					stoppingTime = micros();
+					htim4.Instance->CCR2 -= 5;
+				}
+				if (htim4.Instance->CCR2 < 13050){
+					stage = STAGE_WAITING_FOR_START;
+					isStopping = 0;
+				}
+			} break;
+			case STAGE_RESTART:{
+				static uint8_t isRestarting = 0;
+				static uint64_t restartingTime = 0;
+				if ( isRestarting == 0){
+					isRestarting = 1;
+					htim4.Instance->CCR2 = 12000;
+					restartingTime = micros();
+				} else if (micros() - restartingTime > 10000000){
+					isRestarting = 0;
+					stage = STAGE_DEINIT;
+				}
+			}break;
+		};
 			
+		MPU9255_cycle(micros());				
 		if( MPU9255_ACC_GYRO_isReady() == 1){
+			float GYxTmp, GYyTmp, GYzTmp;
 			float normedKoef, beamAngleTmp;
 			matrixSE(&accVec, 0, 0, ACx);
 			matrixSE(&accVec, 1, 0, ACy);
@@ -220,18 +289,68 @@ int main(void)
 			matrixMultiply(&basis, &basisStep1Inv, &transitionMatrix);
 			beamAngleTmp = rad2deg*matrixRotMatrixRotAngle(&transitionMatrix);
 			
-//			normedKoef = periodS/(beamAngleTau+periodS);
-//      beamAngle = normedKoef*beamAngleTmp+(1-normedKoef)*beamAngle;  
+			//			normedKoef = periodS/(beamAngleTau+periodS);
+			//      beamAngle = normedKoef*beamAngleTmp+(1-normedKoef)*beamAngle;  
 			beamAngle = beamAngleTmp + 2.19;
-		}				
+		}		
 		
-		// transmitBasis(basis.arr, micros(), accGyroMagOverload);
-		transmitBeamAngle(beamAngle, micros());
+		transmitBeamAngle(beamAngle, P, I, D, micros());	
 		
-
-		PID(micros());
+		if (protectFromWrite == 1){
+			switch (RxBuf[0] - '0'){
+				case 0:
+					command = COMMAND_RUN;
+					break;
+				case 1:
+					command = COMMAND_STOP;
+					break;
+				case 2:
+					command = COMMAND_RESTART;
+					break;
+				case 3:
+					command = COMMAND_CHANGE_VALUE;
+					memcpy(RxPayload, RxBuf, strlen((char*)RxBuf));
+					break;
+			}
+			protectFromWrite = 0;
+		}
 		
-		
+		if (command != COMMAND_NONE){
+			switch (command){
+				case COMMAND_NONE:
+					break;
+				case COMMAND_STOP:
+					if (stage == STAGE_RUNNING)
+						stage = STAGE_STOPPING;
+					break;
+				case COMMAND_RESTART:
+					if (stage == STAGE_WAITING_FOR_START)
+						stage = STAGE_RESTART;
+					break;
+				case COMMAND_RUN:
+					if (stage == STAGE_WAITING_FOR_START)
+						stage = STAGE_PREPARING;
+					break;
+				case COMMAND_CHANGE_VALUE:
+					switch (RxPayload[1] - '0'){
+						case 0:
+							sscanf((char*)(RxPayload+2), "%f", &reqAngle);
+							break;
+						case 1:
+							sscanf((char*)(RxPayload+2), "%f", &kp);
+							break;
+						case 2:
+							sscanf((char*)(RxPayload+2), "%f", &ki);
+							break;
+						case 3:
+							sscanf((char*)(RxPayload+2), "%f", &kd);
+							break;
+					}
+					break;			
+			}
+			command = COMMAND_NONE;
+		}
+	
 		if(ledToggleCnt == 10000){// I hope this can indicate the load of the CPU
 				HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);	
 				ledToggleCnt = 0;
@@ -362,18 +481,30 @@ void transmitBasis(float* floatArray, uint64_t time, uint8_t overload){
 	CDC_Transmit_FS(data, 10);
 }
 
-void transmitBeamAngle(float angle, uint64_t time){
+void transmitBeamAngle(float angle, float P, float I, float D, uint64_t time){
 	static uint64_t prewTime = 0;
 	static uint8_t data[20];
 	static uint8_t counter = 0;
 	
-	if(time - prewTime < 20000) return;
-	angle = angle*100;
-	data[counter*2+1] = ((uint16_t)(angle)>>8)&0x00ff;
-	data[counter*2] = ((uint16_t)(angle))&0x00ff;
+	if(time - prewTime < 5000) return;
+	angle = angle*200;
+	data[1] = ((uint16_t)(angle)>>8)&0x00ff;
+	data[0] = ((uint16_t)(angle))&0x00ff;
+	P = P*1000;
+	data[3] = ((uint16_t)(P)>>8)&0x00ff;
+	data[2] = ((uint16_t)(P))&0x00ff;
+	I = I*1000;
+	data[5] = ((uint16_t)(I)>>8)&0x00ff;
+	data[4] = ((uint16_t)(I))&0x00ff;
+	D = D*1000;
+	data[7] = ((uint16_t)(D)>>8)&0x00ff;
+	data[6] = ((uint16_t)(D))&0x00ff;
+	
+	data[9] = ((uint16_t)(PIDsum*1000)>>8)&0x00ff;
+	data[8] = ((uint16_t)(PIDsum*1000))&0x00ff;
 //	counter ++;
 	prewTime = time;
-	CDC_Transmit_FS(data, 2);
+	CDC_Transmit_FS(data, 10);
 	
 //	if (counter == 10){
 //		CDC_Transmit_FS(data, 20);
@@ -421,7 +552,7 @@ void PID(uint64_t time){
 	
 	da = beamAngle-anglePrev;
 	anglePrev = beamAngle;
-	D = kd*deg2rad*da/periodSPID;
+	float DTmp = kd*deg2rad*da/periodSPID;
 //	D = kd*da*fabs(da)/periodS * exp(-pow(error/Dsigma, 2));
 	
 //	if (da >= 0)
@@ -431,17 +562,22 @@ void PID(uint64_t time){
 	
 	
 //	PIDsumTmp = (P+I-D+S)/1000;	
-
-	PIDsumTmp = (P+I-D);
+	D = (fabs(D) < 1e-20) ? ((D>=0)? 1e-20 : -1e-20) : D; // защита от ошибки процессора
+	float DnormedKoef = periodSPID/(PIDsumTau+periodSPID);
+	D = DnormedKoef*DTmp+(1-DnormedKoef)*D;
 	
-	PIDsumTmp = (PIDsumTmp > 1) ? 1 : PIDsumTmp;
-	PIDsumTmp = (PIDsumTmp < 0.1) ? 0.1 : PIDsumTmp;
+	PIDsum = (P+I-D);
 	
-//	PIDsumTmp = (PIDsumTmp < 1e-5) ? 1e-5: PIDsumTmp; // защита от ошибки процессора
-//	PIDnormedKoef = periodS/(PIDsumTau+periodS);
+	PIDsum = (PIDsum > 1) ? 1 : PIDsum;
+	PIDsum = (PIDsum < 0.1) ? 0.1 : PIDsum;
+	
+//	PIDsumTmp = (PIDsumTmp < 1e-20) ? 1e-20: PIDsumTmp; // защита от ошибки процессора
+//	PIDnormedKoef = periodSPID/(PIDsumTau+periodSPID);
 //	PIDsum = PIDnormedKoef*PIDsumTmp+(1-PIDnormedKoef)*PIDsum;
+	
 
-	PIDsum = PIDsumTmp;
+
+//	PIDsum = PIDsumTmp;
 	
 	thrustPortion = 3.88493*pow(PIDsum, 0.9859) + -3.4705*PIDsum + 0.0306;
 	
@@ -458,12 +594,12 @@ void restoreVertical(struct matrix* bas, struct matrix* grav, struct matrix* acc
 	matrixZeroes(&Rinit, 3,3);
 	accLen = matrixVecLen(acc);
 	
-	if( accLen > 9.8 && accLen <  10.2){
+	if( accLen > 9 && accLen <  11){
 		matrixCross(acc, grav, &rotVec);
 		matrixNormVec(&rotVec, &rotVec);
 		angle = -acos(-matrixDot(acc, grav)/(accLen*matrixVecLen(grav)));
 //		if( angle < -0.03 || angle > 0.03){
-			matrixRotArbVec(&Rinit, &rotVec, angle/50);
+			matrixRotArbVec(&Rinit, &rotVec, angle*accWeight);
 			matrixMultiply(&Rinit, bas, bas);
 //		}
 	}

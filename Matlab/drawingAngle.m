@@ -9,6 +9,7 @@ ylim([-5 185])
 % ylim([-0.125 0.125])
 
 IMU = serialport("COM13",115200,"Timeout",15);
+configureCallback(IMU, "byte", 2, @convertToAngle);
 
 coordinate=zeros(3,1);
 
@@ -34,6 +35,13 @@ while 1
 end
 plot(times, angles, 'r');
 
+
+function convertToAngle(src, ~)
+bytes = read(src, 2, "uint8");
+value = typecast(uint8(bytes), "int16");
+andle = angle
+
+end
 
 function angles=getIMUdata(port)
     flush(port, "input")

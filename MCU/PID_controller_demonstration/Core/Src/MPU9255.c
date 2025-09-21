@@ -52,6 +52,8 @@ static uint8_t* overload;
 static float gyroXoffs = -2.85640097;
 static float gyroYoffs = 1.79603696;
 static float gyroZoffs = -0.427743942;
+
+static float filterTauUs = 1000;
 	
 static void I2C_writeByte(I2C_HandleTypeDef* i2c, uint8_t devAddr, uint8_t regAddr, uint8_t data){
 	HAL_I2C_Mem_Write(i2c, devAddr, regAddr, I2C_MEMADD_SIZE_8BIT, &data, 1, 10);
@@ -108,33 +110,65 @@ uint8_t MPU9255_cycle(uint64_t micros){
 	}		
 	
  if (i2cAccReceivedFlag == 2){
-	i2cAccReceivedFlag = 0;
-
-	*ACx = (int16_t)(MPUdata[0]<<8)|MPUdata[1];
-	*ACy = (int16_t)(MPUdata[2]<<8)|MPUdata[3];
-	*ACz = (int16_t)(MPUdata[4]<<8)|MPUdata[5];
-
-	*GYx = (int16_t)(MPUdata[8]<<8)|MPUdata[9];
-	*GYy = (int16_t)(MPUdata[10]<<8)|MPUdata[11];
-	*GYz = (int16_t)(MPUdata[12]<<8)|MPUdata[13];	
+	float unfilteredValue = 0;
+	static uint64_t microsPrev = 0;
+	float filterNormedKoef = 0; 
+	uint8_t overloadTmp = 0;
+	i2cAccReceivedFlag = 0;	 
 	
-	if( fabs(*ACx) > 32000 || fabs(*ACy) > 32000 || fabs(*ACz) > 32000 )
-		*overload |= 1 << 2;
-	else
-		*overload &= 0xFB;	
+	filterNormedKoef = (float)(micros - microsPrev)/(filterTauUs + (float)(micros - microsPrev));
+	microsPrev = micros;
+	
 	 
-	if( fabs(*GYx) > 32000 || fabs(*GYy) > 32000 || fabs(*GYz) > 32000 )
-		*overload |= 1 << 1;
-	else
-		*overload &= 0xFD;
+	unfilteredValue = (int16_t)(MPUdata[0]<<8)|MPUdata[1];
+	if( fabs(unfilteredValue) > 32000) overloadTmp |= 1 << 2;	
+	unfilteredValue = (unfilteredValue/1638.4 - accXoffs)*accXmult;
+	unfilteredValue = (fabs(unfilteredValue) < 1e-20) ? ((unfilteredValue>=0)? 1e-20 : -1e-20) : unfilteredValue; // защита от ошибки процессора 
+	*ACx = filterNormedKoef * unfilteredValue + (1-filterNormedKoef)* *ACx;
+	 
+	unfilteredValue = (int16_t)(MPUdata[2]<<8)|MPUdata[3];
+	if( fabs(unfilteredValue) > 32000) overloadTmp |= 1 << 2;	
+	unfilteredValue = (unfilteredValue/1638.4 - accYoffs)*accYmult;
+	unfilteredValue = (fabs(unfilteredValue) < 1e-20) ? ((unfilteredValue>=0)? 1e-20 : -1e-20) : unfilteredValue; // защита от ошибки процессора 
+	*ACy = filterNormedKoef * unfilteredValue + (1-filterNormedKoef)* *ACy;
+	 
+	unfilteredValue = (int16_t)(MPUdata[4]<<8)|MPUdata[5];
+	if( fabs(unfilteredValue) > 32000) overloadTmp |= 1 << 2;	
+	unfilteredValue = (unfilteredValue/1638.4 - accZoffs)*accZmult;
+	unfilteredValue = (fabs(unfilteredValue) < 1e-20) ? ((unfilteredValue>=0)? 1e-20 : -1e-20) : unfilteredValue; // защита от ошибки процессора 
+	*ACz = filterNormedKoef * unfilteredValue + (1-filterNormedKoef)* *ACz;
 
-	*ACx = (*ACx/1638.4 - accXoffs)*accXmult;
-	*ACy = (*ACy/1638.4 - accYoffs)*accYmult;
-	*ACz = (*ACz/1638.4 - accZoffs)*accZmult;
 
-	*GYx = (*GYx/32.8 - gyroXoffs)*gyroXmult;
-	*GYy = (*GYy/32.8 - gyroYoffs)*gyroYmult;
-	*GYz = (*GYz/32.8 - gyroZoffs)*gyroZmult;
+	unfilteredValue = (int16_t)(MPUdata[8]<<8)|MPUdata[9];
+	if( fabs(unfilteredValue) > 32000) overloadTmp |= 1 << 1;	
+	unfilteredValue = (unfilteredValue/32.8 - gyroXoffs)*gyroXmult;
+	unfilteredValue = (fabs(unfilteredValue) < 1e-20) ? ((unfilteredValue>=0)? 1e-20 : -1e-20) : unfilteredValue; // защита от ошибки процессора 
+	*GYx = filterNormedKoef * unfilteredValue + (1-filterNormedKoef)* *GYx;
+	 
+	unfilteredValue = (int16_t)(MPUdata[10]<<8)|MPUdata[11];
+	if( fabs(unfilteredValue) > 32000) overloadTmp |= 1 << 1;	
+	unfilteredValue = (unfilteredValue/32.8 - gyroYoffs)*gyroYmult;
+	unfilteredValue = (fabs(unfilteredValue) < 1e-20) ? ((unfilteredValue>=0)? 1e-20 : -1e-20) : unfilteredValue; // защита от ошибки процессора 
+	*GYy = filterNormedKoef * unfilteredValue + (1-filterNormedKoef)* *GYy;
+	 
+	unfilteredValue = (int16_t)(MPUdata[12]<<8)|MPUdata[13];
+	if( fabs(unfilteredValue) > 32000) overloadTmp |= 1 << 1;	
+	unfilteredValue = (unfilteredValue/32.8 - gyroZoffs)*gyroZmult;
+	unfilteredValue = (fabs(unfilteredValue) < 1e-20) ? ((unfilteredValue>=0)? 1e-20 : -1e-20) : unfilteredValue; // защита от ошибки процессора 
+	*GYz = filterNormedKoef * unfilteredValue + (1-filterNormedKoef)* *GYz;
+
+//	GYxTmp = (int16_t)(MPUdata[8]<<8)|MPUdata[9];
+//	GYyTmp = (int16_t)(MPUdata[10]<<8)|MPUdata[11];
+//	GYzTmp = (int16_t)(MPUdata[12]<<8)|MPUdata[13];	
+//	
+
+//	GYxTmp = (GYxTmp/32.8 - gyroXoffs)*gyroXmult;
+//	GYyTmp = (GYyTmp/32.8 - gyroYoffs)*gyroYmult;
+//	GYzTmp = (GYzTmp/32.8 - gyroZoffs)*gyroZmult;
+	
+	
+	*overload = overloadTmp;
+	
 	 
 	accGyroDataReady = 1;
 	
